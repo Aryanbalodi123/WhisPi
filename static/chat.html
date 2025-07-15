@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Secure Chat</title>
+<link rel="stylesheet" href="styles/chat.css" />
+
+  </head>
+  <body>
+    <div class="chat-container">
+      <!-- Left Sidebar -->
+      <div class="sidebar">
+        <div class="sidebar-header">💬 Chats</div>
+        <div class="search-bar">
+          <input
+            type="text"
+            class="search-input"
+            placeholder="Search or start new chat"
+          />
+        </div>
+        <div class="user-list"></div>
+      </div>
+
+      <!-- Right Side - Chat Area -->
+      <div class="chat-area" id="chatArea">
+        <div class="welcome-screen" id="welcomeScreen">
+          <h2>💬 Welcome to Chat</h2>
+          <p>Select a contact to start messaging</p>
+        </div>
+
+        <!-- Chat Header -->
+        <div class="chat-header" id="chatHeader">
+          <div class="user-avatar" id="chatAvatar">A</div>
+          <div class="user-info">
+            <div class="user-name" id="chatName">Alice Johnson</div>
+            <div class="user-status-text">online</div>
+          </div>
+        </div>
+
+        <!-- Chat Messages -->
+        <div class="chat-messages" id="chatMessages"></div>
+
+        <!-- Chat Input -->
+        <div class="chat-input-container" id="chatInput">
+          <div class="chat-input-wrapper">
+            <textarea
+              class="chat-input"
+              id="messageInput"
+              placeholder="Type a message..."
+              rows="1"
+            ></textarea>
+            <button class="send-button" id="sendButton">➔</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+<script src="javascript/crypto.js"></script>
+<script src="javascript/messaging.js"></script>
+<script src="javascript/userAuth.js"></script>
+<script src="javascript/helper.js"></script>
+  </body>
+</html>
