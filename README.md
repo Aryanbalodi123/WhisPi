@@ -1,7 +1,7 @@
-# Whispi (SecureChat on Raspberry Pi)
+# Whispi
 
 A fully offline, end-to-end encrypted chat server and web client hosted on a Raspberry Pi Zero W.  
-Users connect to the Pi's Wi-Fi, are redirected to `https://whispi.local`, register/login, and exchange encrypted messages—all without Internet.
+Users connect to the Pi's Wi-Fi, are redirected to `https://whispi.secure`, register/login, and exchange encrypted messages—all without Internet.
 
 ---
 
@@ -10,7 +10,7 @@ Users connect to the Pi's Wi-Fi, are redirected to `https://whispi.local`, regis
 - **Offline Wi-Fi Hotspot**  
   Pi acts as a standalone access point (no external router required)
 - **Local Domain & HTTPS**  
-  `whispi.local` with a locally trusted CA certificate  
+  `whispi.secure` with a locally trusted CA certificate  
 - **Hybrid Encryption**  
   RSA for key exchange + AES for message payloads  
 - **Password-Protected Private Keys**  
@@ -64,7 +64,7 @@ openssl req -x509 -new -nodes -key ca.key -sha256 \
 # Create server key & CSR
 openssl genrsa -out server.key 2048
 openssl req -new -key server.key \
-  -out server.csr -subj "/CN=whispi.local"
+  -out server.csr -subj "/CN=whispi.secure"
 
 # Sign server cert with CA
 openssl x509 -req -in server.csr -CA ca.crt -CAkey ca.key \
@@ -76,7 +76,7 @@ On Windows/Mac/Linux: import `ca.crt` into your OS/browser's trusted root store.
 
 ### 5. Copy certificates to Pi
 ```bash
-scp ca.crt server.crt server.key pi@whispi.local:/home/pi/whispi/certs/
+scp ca.crt server.crt server.key pi@whispi.secure:/home/pi/whispi/certs/
 ```
 
 ---
@@ -86,7 +86,7 @@ scp ca.crt server.crt server.key pi@whispi.local:/home/pi/whispi/certs/
 Follow Pi Hotspot Configuration to:
 - Install & configure `hostapd`
 - Set up `dnsmasq` for DHCP & DNS
-- Enable automatic redirect to `whispi.local`
+- Enable automatic redirect to `whispi.secure`
 
 > **Note:** You'll lose SSH momentarily during transitions; reconnect to the Pi's SSID.
 
@@ -123,7 +123,7 @@ FLASK_ENV=production flask run \
 ## 💬 Using the Chat
 
 1. Connect your device to the Pi's Wi-Fi SSID
-2. In your browser, visit `https://whispi.local`
+2. In your browser, visit `https://whispi.secure`
 3. Sign up with a username & password (your RSA private key is encrypted and stored)
 4. Log in to see your inbox and compose messages
 5. All messages are encrypted and signed; only recipients can decrypt
