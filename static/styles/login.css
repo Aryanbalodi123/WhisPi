@@ -602,9 +602,9 @@ html, body {
   height: 100%;
 }
 body {
-  background-image: url("https://assets.codepen.io/344846/photo-1697899001862-59699946ea29.jpeg");
+  background-image: url("static/assets/background.jpeg");
   background-size: cover;
-  bakground-repeat: no-repeat;
+  background-repeat: no-repeat;
   background-position: center;
 }
 @property --tw-scale-x {

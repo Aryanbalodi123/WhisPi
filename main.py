@@ -38,7 +38,7 @@ def create_app():
         SESSION_TYPE='filesystem',
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SECURE=os.getenv('SESSION_COOKIE_SECURE', 'True').lower() == 'true',
-        SESSION_COOKIE_SAMESITE='Strict',
+        SESSION_COOKIE_SAMESITE='Lax',
         SESSION_PERMANENT=True,
         SESSION_USE_SIGNER=True,
         SESSION_FILE_DIR=os.getenv('SESSION_FILE_DIR', '/tmp/flask_session'),

@@ -6,13 +6,13 @@ import bcrypt
 import logging
 from flask import Blueprint, request, jsonify, session, current_app
 from flask_limiter.util import get_remote_address
-from database import (
+from app.database import (
     get_db, is_user_locked, increment_failed_login, reset_failed_login,
     is_ip_locked, increment_ip_failed_attempt, reset_ip_failed_login,
     create_user_session, validate_session, invalidate_session,
     cleanup_expired_sessions, cleanup_expired_ip_locks
 )
-from utils import (
+from app.utils import (
     validate_username, validate_password, validate_public_key,
     decrypt_hybrid_payload, require_auth
 )
@@ -158,7 +158,18 @@ def login():
         user = cursor.fetchone()
         conn.close()
         
-        if not user or not bcrypt.checkpw(password.encode('utf-8'), user[1].encode('utf-8')):
+        # Fix: Handle the password hash properly
+        if not user:
+            increment_failed_login(username)
+            increment_ip_failed_attempt(ip_address)
+            return jsonify({"error": "Invalid credentials"}), 401
+        
+        # The password hash from database is a string, so we need to encode it to bytes
+        stored_password_hash = user[1]
+        if isinstance(stored_password_hash, str):
+            stored_password_hash = stored_password_hash.encode('utf-8')
+        
+        if not bcrypt.checkpw(password.encode('utf-8'), stored_password_hash):
             increment_failed_login(username)
             increment_ip_failed_attempt(ip_address)
             return jsonify({"error": "Invalid credentials"}), 401

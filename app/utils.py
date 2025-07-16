@@ -11,7 +11,7 @@ from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.backends import default_backend
-from database import validate_session
+from app.database import validate_session
 
 def validate_username(username):
     """Validate username format and constraints."""

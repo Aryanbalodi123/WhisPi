@@ -5,8 +5,8 @@ Chat and messaging routes for WhisPI application.
 import json
 import logging
 from flask import Blueprint, request, jsonify, session, current_app
-from database import get_db
-from utils import require_auth
+from app.database import get_db
+from app.utils import require_auth
 
 chat_bp = Blueprint('chat', __name__)
 
