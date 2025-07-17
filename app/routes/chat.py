@@ -102,16 +102,16 @@ def send():
 @chat_bp.route("/inbox/<username>", methods=["GET"])
 @require_auth
 def inbox(username):
-    """Get encrypted messages for user (only if session username matches)."""
     current_app.limiter.limit("60 per minute")(lambda: None)()
-    
+
     try:
-        # Ensure user can only access their own inbox
         if session['username'] != username:
             return jsonify({"error": "Access denied"}), 403
-        
+
         conn = get_db()
         cursor = conn.cursor()
+
+        # Get all messages sent to the user
         cursor.execute(
             """
             SELECT from_user, to_user, message, signature, created_at 
@@ -122,26 +122,44 @@ def inbox(username):
             (username,)
         )
         rows = cursor.fetchall()
-        conn.close()
-        
+
         messages = []
+
         for row in rows:
+            from_user = row[0]
+            to_user = row[1]
+            raw_message = row[2]
+            signature = row[3] or ""
+            timestamp = row[4]
+
             try:
-                encrypted_message = json.loads(row[2])
+                
+                cursor.execute(
+                    "SELECT is_active FROM user_sessions WHERE username = ? AND is_active = 1",
+                    (from_user,)
+                )
+                result = cursor.fetchone()
+                is_online = bool(result and result[0])  
+
+                encrypted_message = json.loads(raw_message)
                 message_data = {
-                    "from_user": row[0],
-                    "to_user": row[1],
+                    "from_user": from_user,
+                    "to_user": to_user,
                     "encrypted_message": encrypted_message,
-                    "signature": row[3] or "",
-                    "timestamp": row[4]
+                    "signature": signature,
+                    "timestamp": timestamp,
+                    "is_online": is_online
                 }
                 messages.append(message_data)
+
             except json.JSONDecodeError as e:
-                logging.error(f"Failed to parse message from {row[0]}: {e}")
+                logging.error(f"Failed to parse message from {from_user}: {e}")
                 continue
-        
+
         return jsonify(messages)
-        
+
     except Exception as e:
         logging.error(f"Error in inbox endpoint: {e}")
         return jsonify({"error": "Failed to retrieve messages"}), 500
+
+    

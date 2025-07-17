@@ -2,7 +2,7 @@ window.chatMessages = {};
 let currentChatUser = null;
 let currentUser = null;
 let userPrivateKey = null;
-let userSigningKey = null; 
+let userSigningKey = null;
 
 
 // ——— Open Chat ———
@@ -38,9 +38,8 @@ function loadChatMessages(user) {
   container.innerHTML = "";
   msgs.forEach((m) => {
     const msgDiv = document.createElement("div");
-    msgDiv.className = `message ${
-      m.sender === currentUser ? "sent" : "received"
-    }`;
+    msgDiv.className = `message ${m.sender === currentUser ? "sent" : "received"
+      }`;
     const bubble = document.createElement("div");
     bubble.className = "message-bubble";
 
@@ -59,10 +58,10 @@ function loadChatMessages(user) {
       indicator.title = m.verified === true ? 'Verified' : m.verified === false ? 'Unverified' : 'Unknown';
       bubble.appendChild(indicator);
     }
-    
+
     const textNode = document.createTextNode(m.text);
     bubble.appendChild(textNode);
-    
+
     const time = document.createElement("span");
     time.className = "message-time";
     time.textContent = m.time;
@@ -118,18 +117,21 @@ async function sendMessage() {
 // ——— Poll Inbox ———
 async function getInbox() {
   if (!currentUser) return;
+
   try {
     const res = await fetch(`/inbox/${encodeURIComponent(currentUser)}`);
     if (!res.ok) throw new Error("Inbox fetch failed");
+
     const messages = await res.json();
 
     for (const msg of messages) {
       if (msg.from_user === currentUser) continue;
+
       const plain = await decryptMessage(
         msg.encrypted_message,
-        userPrivateKey
+        userPrivateKey 
       );
-      
+
       let verified = null;
       if (msg.signature) {
         try {
@@ -143,17 +145,17 @@ async function getInbox() {
           verified = false;
         }
       }
-      
+
       const time = new Date(msg.timestamp).toLocaleTimeString([], {
         hour: "2-digit",
         minute: "2-digit",
       });
-      
+
       window.chatMessages[msg.from_user] = window.chatMessages[msg.from_user] || [];
       const exists = window.chatMessages[msg.from_user].some(
         (m) => m.text === plain && m.time === time
       );
-      
+
       if (!exists) {
         window.chatMessages[msg.from_user].push({
           sender: msg.from_user,
@@ -162,25 +164,28 @@ async function getInbox() {
           verified: verified,
         });
       }
+
+      if (msg.from_user === currentChatUser) {
+        const statusText = msg.is_online ? "Online" : "Offline";
+        document.getElementById("user-status-text").textContent = statusText;
+      }
     }
-    
-    // Refresh the current chat if it's open
+
     if (currentChatUser) {
       loadChatMessages(currentChatUser);
     }
+
   } catch (err) {
     console.error(err);
   }
 }
 
-
-
 document.addEventListener("DOMContentLoaded", async () => {
-  
-    try {
+
+  try {
     await restoreSession();
   } catch (err) {
-      return;
+    return;
   }
 
   document
