@@ -1,8 +1,8 @@
 window.chatMessages = {};
 let currentChatUser = null;
-let currentUser = null;
-let userPrivateKey = null;
-let userSigningKey = null;
+// REMOVED: let currentUser = null; - we'll use window.currentUser instead
+// REMOVED: let userPrivateKey = null; - we'll use window.userPrivateKey instead  
+// REMOVED: let userSigningKey = null; - we'll use window.userSigningKey instead
 
 
 // ——— Open Chat ———
@@ -38,12 +38,12 @@ function loadChatMessages(user) {
   container.innerHTML = "";
   msgs.forEach((m) => {
     const msgDiv = document.createElement("div");
-    msgDiv.className = `message ${m.sender === currentUser ? "sent" : "received"
+    msgDiv.className = `message ${m.sender === window.currentUser ? "sent" : "received"
       }`;
     const bubble = document.createElement("div");
     bubble.className = "message-bubble";
 
-    if (m.sender !== currentUser) {
+    if (m.sender !== window.currentUser) {
       const indicator = document.createElement("span");
       indicator.className = "verification-indicator";
       indicator.style.cssText = `
@@ -80,14 +80,15 @@ async function sendMessage() {
   if (!input.value.trim() || !currentChatUser) return;
   const text = input.value.trim();
   try {
-    const signature = await signMessage(text, userSigningKey);
+    const signature = await signMessage(text, window.userSigningKey);
 
     const encrypted = await encryptMessage(currentChatUser, text);
     await fetch("/send", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      credentials: "include", // FIXED: Include credentials
       body: JSON.stringify({
-        from_user: currentUser,
+        from_user: window.currentUser,
         to_user: currentChatUser,
         message: encrypted,
         signature: signature,
@@ -100,7 +101,7 @@ async function sendMessage() {
     window.chatMessages[currentChatUser] =
       window.chatMessages[currentChatUser] || [];
     window.chatMessages[currentChatUser].push({
-      sender: currentUser,
+      sender: window.currentUser,
       text,
       time,
       verified: true, // Own messages are always verified
@@ -116,26 +117,30 @@ async function sendMessage() {
 
 // ——— Poll Inbox ———
 async function getInbox() {
-  if (!currentUser) return;
+  if (!window.currentUser) return;
 
   try {
-    const res = await fetch(`/inbox/${encodeURIComponent(currentUser)}`);
+    const res = await fetch(`/inbox/${encodeURIComponent(window.currentUser)}`, {
+      credentials: "include" // FIXED: Include credentials
+    });
     if (!res.ok) throw new Error("Inbox fetch failed");
 
     const messages = await res.json();
 
     for (const msg of messages) {
-      if (msg.from_user === currentUser) continue;
+      if (msg.from_user === window.currentUser) continue;
 
       const plain = await decryptMessage(
         msg.encrypted_message,
-        userPrivateKey 
+        window.userPrivateKey 
       );
 
       let verified = null;
       if (msg.signature) {
         try {
-          const pubKeyRes = await fetch(`/get_key/${msg.from_user}`);
+          const pubKeyRes = await fetch(`/get_key/${msg.from_user}`, {
+            credentials: "include" // FIXED: Include credentials
+          });
           if (pubKeyRes.ok) {
             const { public_key } = await pubKeyRes.json();
             verified = await verifySignature(plain, msg.signature, public_key);
@@ -167,7 +172,10 @@ async function getInbox() {
 
       if (msg.from_user === currentChatUser) {
         const statusText = msg.is_online ? "Online" : "Offline";
-        document.getElementById("user-status-text").textContent = statusText;
+        const statusElement = document.getElementById("user-status-text");
+        if (statusElement) {
+          statusElement.textContent = statusText;
+        }
       }
     }
 

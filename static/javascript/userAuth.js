@@ -41,7 +41,7 @@ async function restoreSession() {
     // Then check if the server session is still valid
     const statusRes = await fetch("/session/status", {
       method: "GET",
-      credentials: "include",
+      credentials: "include", // FIXED: Include credentials
     });
 
     if (!statusRes.ok) {
@@ -49,10 +49,10 @@ async function restoreSession() {
     }
     
     // Restore the user's private key
-    currentUser = username;
+    window.currentUser = username; // FIXED: Set window.currentUser
     const buf = Uint8Array.from(keyBuffer).buffer;
     
-    userPrivateKey = await crypto.subtle.importKey(
+    window.userPrivateKey = await crypto.subtle.importKey(
       "pkcs8",
       buf,
       { name: "RSA-OAEP", hash: "SHA-256" },
@@ -60,7 +60,7 @@ async function restoreSession() {
       ["decrypt"]
     );
     
-    userSigningKey = await crypto.subtle.importKey(
+    window.userSigningKey = await crypto.subtle.importKey(
       "pkcs8",
       buf,
       { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
@@ -69,7 +69,7 @@ async function restoreSession() {
     );
     
     startAutoLogoutTimer();
-    log(`Session restored for ${currentUser}`);
+    log(`Session restored for ${window.currentUser}`);
     return true;
   } catch (err) {
     log(`Session restore failed: ${err.message}`);
@@ -96,7 +96,7 @@ function startAutoLogoutTimer() {
     try {
       await fetch("/logout", {
         method: "POST",
-        credentials: "include",
+        credentials: "include", // FIXED: Include credentials
       });
     } catch (err) {
       console.error("Logout failed:", err);
@@ -121,20 +121,22 @@ function startAutoLogoutTimer() {
 }
 
 function isLoggedIn() {
-  return currentUser !== null && userPrivateKey !== null && userSigningKey !== null;
+  return window.currentUser !== null && window.userPrivateKey !== null && window.userSigningKey !== null;
 }
 
 // ——— User Management Functions ———
 async function fetchUsers() {
   try {
-    const res = await fetch("/users");
+    const res = await fetch("/users", {
+      credentials: "include" // FIXED: Include credentials
+    });
     if (!res.ok) throw new Error(res.statusText);
     
     const { users } = await res.json();
     const list = document.querySelector(".user-list");
     list.innerHTML = "";
     
-    const others = users.filter((u) => u !== currentUser);
+    const others = users.filter((u) => u !== window.currentUser);
     if (!others.length) {
       list.innerHTML = '<div class="error-message">No other users</div>';
       return;
@@ -199,7 +201,7 @@ document.addEventListener('DOMContentLoaded', async function() {
           // User might still be logged in, check server session
           const statusRes = await fetch("/session/status", {
             method: "GET",
-            credentials: "include",
+            credentials: "include", // FIXED: Include credentials
           });
           
           if (statusRes.ok) {
@@ -246,6 +248,7 @@ function setupLoginHandlers() {
         const response = await fetch('/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          credentials: 'include', // FIXED: Include credentials to save session cookie
           body: JSON.stringify(encryptedPayload)
         });
         
@@ -330,6 +333,7 @@ function setupLoginHandlers() {
         const response = await fetch('/register', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          credentials: 'include', // FIXED: Include credentials
           body: JSON.stringify(encryptedPayload)
         });
         
