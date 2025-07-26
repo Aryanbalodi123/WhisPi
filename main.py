@@ -9,6 +9,8 @@ from flask_session import Session
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from datetime import timedelta
+from redis import Redis
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 # Load environment variables
 load_dotenv()
@@ -22,7 +24,9 @@ logging.basicConfig(
 def create_app():
     """Create and configure the Flask application."""
     app = Flask(__name__)
-    app.secret_key = os.urandom(32)
+    
+    # CRITICAL: Use consistent secret key across all workers
+    app.secret_key = os.getenv('SECRET_KEY', 'whispi-secret-key-change-me-in-production')
 
     # Flask compatibility fix
     if not hasattr(Flask, "ensure_sync"):
@@ -30,20 +34,24 @@ def create_app():
             return fn
         Flask.ensure_sync = ensure_sync
     
+    # Apply ProxyFix FIRST for Nginx
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
+    
     # Configure CORS
     CORS(app, supports_credentials=True)
     
-    # Configure Flask-Session with security improvements
+    # Configure Flask-Session - SIMPLIFIED
     app.config.update(
-        SESSION_TYPE='filesystem',
-        SESSION_COOKIE_HTTPONLY=True,
-        SESSION_COOKIE_SECURE=os.getenv('SESSION_COOKIE_SECURE', 'True').lower() == 'true',
-        SESSION_COOKIE_SAMESITE='Lax',
+        SESSION_TYPE='redis',
+        SESSION_REDIS=Redis(host='localhost', port=6379),
         SESSION_PERMANENT=True,
         SESSION_USE_SIGNER=True,
-        SESSION_FILE_DIR=os.getenv('SESSION_FILE_DIR', '/tmp/flask_session'),
+        SESSION_KEY_PREFIX='whispi:',
+        SESSION_COOKIE_HTTPONLY=True,
+        SESSION_COOKIE_SECURE=True,
+        SESSION_COOKIE_SAMESITE='Lax',  # FIXED: Changed from 'None' to 'Lax'
         PERMANENT_SESSION_LIFETIME=timedelta(hours=24)
-    )
+    )   
     
     # Initialize session
     Session(app)
@@ -53,7 +61,7 @@ def create_app():
         app=app,
         key_func=get_remote_address,
         default_limits=["200 per day", "50 per hour"],
-        storage_uri="memory://",
+        storage_uri="redis://localhost:6379",
         headers_enabled=True
     )
     

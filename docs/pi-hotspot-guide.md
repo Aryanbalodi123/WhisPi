@@ -131,7 +131,7 @@ sudo iwlist wlan0 scan | grep RaspberryPi-Hotspot
 ### 1. Stop Hotspot Services
 
 ```bash
-sudo systemctl stop hostapd dnsmasq
+    sudo systemctl stop hostapd dnsmasq
 sudo systemctl disable hostapd dnsmasq
 ```
 
