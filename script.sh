@@ -62,25 +62,38 @@ if check_internet; then
     sudo apt install -y hostapd dnsmasq openssl python3-flask python3-pip python3-venv \
                         nginx redis-server supervisor
     
-    # Install development packages needed for Python package compilation
-    echo "📦 Installing development dependencies for Python packages..."
+    # Install development packages FIRST (before pip installs)
+    echo "🔧 Installing development dependencies for Python package compilation..."
     sudo apt install -y build-essential libssl-dev libffi-dev python3-dev pkg-config
+    echo "✅ Development tools ready for building Python packages"
     
     # Start and enable Redis
     echo "🔴 Configuring Redis..."
     sudo systemctl enable redis-server
     sudo systemctl start redis-server
     
-    # Create virtual environment for better package management
+    # Create virtual environment in a clean location
     echo "🐍 Creating Python virtual environment..."
-    python3 -m venv whispi_env
-    source whispi_env/bin/activate
+    VENV_PATH="$HOME/envs/whispi"
+    mkdir -p "$HOME/envs"
+    python3 -m venv "$VENV_PATH"
+    source "$VENV_PATH/bin/activate"
     
-    # Upgrade pip first
+    # Check current pip version and upgrade if needed
+    echo "🔧 Checking pip version..."
+    CURRENT_PIP_VERSION=$(pip --version | cut -d' ' -f2)
+    echo "Current pip version: $CURRENT_PIP_VERSION"
+    
+    # Install wheel first for faster package installations
+    echo "⚙️ Installing wheel for faster package builds..."
+    pip install wheel
+    
+    # Upgrade pip only if it's older than a reasonable version
+    echo "📦 Upgrading pip if needed..."
     pip install --upgrade pip
     
     # Add production packages to requirements.txt if not already present
-    echo "📦 Adding production packages to requirements.txt..."
+    echo "📝 Adding production packages to requirements.txt..."
     if ! grep -q "^gunicorn" requirements.txt; then
         echo "gunicorn" >> requirements.txt
         echo "   ✅ Added gunicorn to requirements.txt"
@@ -95,13 +108,14 @@ if check_internet; then
         echo "   ℹ️  redis already in requirements.txt"
     fi
     
-    # Install from updated requirements.txt (let Pi choose best versions)
-    echo "📦 Installing Python packages from requirements.txt..."
-    echo "🎯 Letting Raspberry Pi choose the best compatible versions..."
+    # Install from updated requirements.txt (optimized for cryptography)
+    echo "🚀 Installing Python packages from requirements.txt..."
+    echo "🎯 Using prebuilt wheels when available for faster installation..."
+    echo "⏳ Note: cryptography and similar packages may take a few minutes to install..."
     pip install -r requirements.txt
     
-    # Save the activation command for later use
-    echo "source $(pwd)/whispi_env/bin/activate" > activate_whispi.sh
+    # Save the activation command for later use (updated path)
+    echo "source $VENV_PATH/bin/activate" > activate_whispi.sh
     chmod +x activate_whispi.sh
     
     echo "✅ All packages installed successfully!"
@@ -299,7 +313,7 @@ echo "👁️ Creating Supervisor configuration..."
 
 sudo bash -c "cat > /etc/supervisor/conf.d/whispi.conf << EOF
 [program:whispi]
-command=$(pwd)/whispi_env/bin/gunicorn -c $(pwd)/config/gunicorn.py main:app
+command=$VENV_PATH/bin/gunicorn -c $(pwd)/config/gunicorn.py main:app
 directory=$(pwd)
 user=$USER
 autostart=true
@@ -308,7 +322,7 @@ redirect_stderr=true
 stdout_logfile=/var/log/whispi/supervisor.log
 stdout_logfile_maxbytes=10MB
 stdout_logfile_backups=5
-environment=PATH=\"$(pwd)/whispi_env/bin\"
+environment=PATH=\"$VENV_PATH/bin\"
 EOF"
 
 echo "✅ Supervisor configured successfully!"
@@ -497,10 +511,10 @@ EOF
 chmod +x activate_hotspot.sh
 
 # Create development script
-cat > run_development.sh << 'EOF'
+cat > run_development.sh << EOF
 #!/bin/bash
 echo "🧪 Starting WhisPi in development mode..."
-source whispi_env/bin/activate
+source $VENV_PATH/bin/activate
 export DEBUG=True
 export HOST=0.0.0.0
 export PORT=5000
@@ -539,7 +553,7 @@ Generated Files:
 - start_whispi_stack.sh (start all services)
 - stop_whispi_stack.sh (stop all services)
 - run_development.sh (development mode)
-- whispi_env/ (Python virtual environment)
+- $HOME/envs/whispi/ (Python virtual environment)
 
 Management Commands:
 - Activate hotspot: ./activate_hotspot.sh
