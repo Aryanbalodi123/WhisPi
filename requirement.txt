@@ -1,12 +1,9 @@
-# Web framework and extensions
 Flask
 Flask-Cors
 Flask-Session
 Flask-Limiter
-
-# Environment variable support
 python-dotenv
-
-# Cryptography and hashing
 bcrypt
 cryptography
+redis
+gunicorn

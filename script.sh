@@ -18,34 +18,16 @@ check_internet() {
     ping -c 1 8.8.8.8 >/dev/null 2>&1
 }
 
-# Function to create requirements.txt if it doesn't exist
-create_requirements() {
+# Function to check if requirements.txt exists
+check_requirements() {
     if [ ! -f "requirements.txt" ]; then
-        echo "📄 Creating requirements.txt..."
-        cat > requirements.txt << 'EOF'
-# Web framework and extensions
-Flask==2.3.3
-Flask-Cors==4.0.0
-Flask-Session==0.5.0
-Flask-Limiter==3.5.0
-
-# Environment variable support
-python-dotenv==1.0.0
-
-# Cryptography and hashing
-bcrypt==4.0.1
-cryptography==41.0.7
-
-# WSGI server
-gunicorn==21.2.0
-
-# Redis support
-redis==5.0.1
-
-# Additional utilities
-Werkzeug==2.3.7
-requests==2.31.0
-EOF
+        echo "❌ requirements.txt not found in current directory!"
+        echo "Please make sure requirements.txt is present before running this script."
+        exit 1
+    else
+        echo "✅ Found existing requirements.txt file"
+        echo "📦 Packages to be installed:"
+        cat requirements.txt | grep -v '^#' | grep -v '^$' | sed 's/^/   • /'
     fi
 }
 
@@ -61,6 +43,9 @@ read -p "📡 Local IP for Pi [192.168.4.1]: " LOCAL_IP
 LOCAL_IP=${LOCAL_IP:-192.168.4.1}
 read -s -p "🔐 Password to protect PEM files (RSA + TLS): " PEM_PASS
 echo ""
+
+# Check for existing requirements.txt
+check_requirements
 
 # --- Phase 2: System updates and package installation (while internet is available) ---
 echo ""
@@ -90,9 +75,25 @@ if check_internet; then
     # Upgrade pip first
     pip install --upgrade pip
     
-    # Create and install from requirements.txt
-    create_requirements
+    # Add production packages to requirements.txt if not already present
+    echo "📦 Adding production packages to requirements.txt..."
+    if ! grep -q "^gunicorn" requirements.txt; then
+        echo "gunicorn" >> requirements.txt
+        echo "   ✅ Added gunicorn to requirements.txt"
+    else
+        echo "   ℹ️  gunicorn already in requirements.txt"
+    fi
+    
+    if ! grep -q "^redis" requirements.txt; then
+        echo "redis" >> requirements.txt
+        echo "   ✅ Added redis to requirements.txt"
+    else
+        echo "   ℹ️  redis already in requirements.txt"
+    fi
+    
+    # Install from updated requirements.txt (let Pi choose best versions)
     echo "📦 Installing Python packages from requirements.txt..."
+    echo "🎯 Letting Raspberry Pi choose the best compatible versions..."
     pip install -r requirements.txt
     
     # Save the activation command for later use
@@ -100,6 +101,8 @@ if check_internet; then
     chmod +x activate_whispi.sh
     
     echo "✅ All packages installed successfully!"
+    echo "📋 Installed versions:"
+    pip list | grep -E "(Flask|gunicorn|redis|bcrypt|cryptography)" | sed 's/^/   • /'
 else
     echo "❌ No internet connection. Cannot install packages."
     echo "Please connect to internet and run this script again."
@@ -504,13 +507,18 @@ chmod +x run_development.sh
 # Save configuration for reference
 echo "💾 Saving configuration..."
 cat > whispi_config.txt << EOF
-WhisPi Configuration (Updated)
-==============================
+WhisPi Configuration (Updated - Using Your Requirements)
+========================================================
 WiFi Network: $WIFI_NAME
 WiFi Password: $WIFI_PASS
 Local Domain: $SITE_URL
 Pi IP Address: $LOCAL_IP
 PEM Password: [HIDDEN]
+
+Package Management:
+✅ Used your existing requirements.txt
+📝 Added gunicorn and redis to your requirements.txt
+🎯 Let Raspberry Pi choose best compatible versions
 
 Architecture:
 - Nginx: Reverse proxy with SSL termination
@@ -541,7 +549,13 @@ Management Commands:
 EOF
 
 echo ""
-echo "🎉 WhisPi setup completed successfully with modern architecture!"
+echo "🎉 WhisPi setup completed successfully using your requirements!"
+echo ""
+echo "📦 PACKAGE INFO:"
+echo "✅ Used your existing requirements.txt"
+echo "📝 Added gunicorn and redis to requirements.txt (if not present)"
+echo "🎯 Raspberry Pi chose the best compatible versions"
+echo "📋 Check installed versions in whispi_config.txt"
 echo ""
 echo "📋 NEXT STEPS:"
 echo "1️⃣  Run: ./activate_hotspot.sh (this will disable internet)"
