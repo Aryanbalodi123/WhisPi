@@ -86,11 +86,17 @@ if check_internet; then
     
     # Install wheel first for faster package installations
     echo "⚙️ Installing wheel for faster package builds..."
-    pip install wheel
+    pip install --upgrade wheel
     
-    # Upgrade pip only if it's older than a reasonable version
-    echo "📦 Upgrading pip if needed..."
+    # Upgrade pip for better wheel support
+    echo "📦 Upgrading pip for better prebuilt wheel support..."
     pip install --upgrade pip
+    
+    # Also install piwheels index for Raspberry Pi optimized packages
+    echo "🥧 Configuring piwheels for Raspberry Pi optimized packages..."
+    pip install --upgrade --index-url https://www.piwheels.org/simple/ --extra-index-url https://pypi.org/simple/ wheel || {
+        echo "⚠️  piwheels not available, using standard PyPI"
+    }
     
     # Add production packages to requirements.txt if not already present
     echo "📝 Adding production packages to requirements.txt..."
@@ -108,11 +114,27 @@ if check_internet; then
         echo "   ℹ️  redis already in requirements.txt"
     fi
     
-    # Install from updated requirements.txt (optimized for cryptography)
-    echo "🚀 Installing Python packages from requirements.txt..."
-    echo "🎯 Using prebuilt wheels when available for faster installation..."
-    echo "⏳ Note: cryptography and similar packages may take a few minutes to install..."
-    pip install -r requirements.txt
+    # Install from updated requirements.txt (prioritize prebuilt wheels)
+    echo "🚀 Installing Python packages with prebuilt wheels priority..."
+    echo "🥧 Using piwheels (Raspberry Pi optimized) + PyPI fallback..."
+    
+    # Try with piwheels first (Raspberry Pi optimized prebuilt packages)
+    pip install --index-url https://www.piwheels.org/simple/ \
+                --extra-index-url https://pypi.org/simple/ \
+                --only-binary=cryptography,bcrypt,cffi,pycparser,lxml \
+                --prefer-binary \
+                -r requirements.txt || {
+        echo "⚠️  Some packages not available as prebuilt wheels from piwheels..."
+        echo "🔄 Trying standard PyPI with binary preference..."
+        pip install --only-binary=cryptography,bcrypt,cffi,pycparser \
+                    --prefer-binary \
+                    --no-cache-dir \
+                    -r requirements.txt || {
+            echo "⚠️  Falling back to source build (this will take longer)..."
+            echo "⏳ Building packages from source - please wait..."
+            pip install -r requirements.txt
+        }
+    }
     
     # Save the activation command for later use (updated path)
     echo "source $VENV_PATH/bin/activate" > activate_whispi.sh
