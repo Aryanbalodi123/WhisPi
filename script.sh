@@ -62,6 +62,10 @@ if check_internet; then
     sudo apt install -y hostapd dnsmasq openssl python3-flask python3-pip python3-venv \
                         nginx redis-server supervisor
     
+    # Install development packages needed for Python package compilation
+    echo "📦 Installing development dependencies for Python packages..."
+    sudo apt install -y build-essential libssl-dev libffi-dev python3-dev pkg-config
+    
     # Start and enable Redis
     echo "🔴 Configuring Redis..."
     sudo systemctl enable redis-server
