@@ -173,7 +173,7 @@ cp certs/rsa_public.pem certs/public.pem
 
 # Set proper permissions
 chmod 600 certs/*.pem certs/*-key.pem
-chmod 644 certs/*.crt
+chmod 644 certs/*.pem
 
 echo "✅ Security certificates generated!"
 
