@@ -11,6 +11,7 @@ from flask_limiter.util import get_remote_address
 from datetime import timedelta
 from redis import Redis
 from werkzeug.middleware.proxy_fix import ProxyFix
+from whitenoise import WhiteNoise  # ADD THIS IMPORT
 
 # Load environment variables
 load_dotenv()
@@ -36,6 +37,14 @@ def create_app():
     
     # Apply ProxyFix FIRST for Nginx
     app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
+    
+    # ADD WHITENOISE: Serve static files automatically with Gunicorn
+    app.wsgi_app = WhiteNoise(
+        app.wsgi_app,
+        root=os.path.join(os.path.dirname(__file__), 'static'),
+        prefix='/static/',
+        max_age=31536000  # Cache for 1 year in production
+    )
     
     # Configure CORS
     CORS(app, supports_credentials=True)
