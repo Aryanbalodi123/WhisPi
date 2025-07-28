@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Activate venv if using one
-# source venv/bin/activate
+source venv/bin/activate
 
 # Load environment variables from .env
 export $(grep -v '^#' .env | xargs)
