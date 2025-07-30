@@ -1,7 +1,3 @@
-"""
-Authentication routes for WhisPI application.
-"""
-
 import bcrypt
 import logging
 from flask import Blueprint, request, jsonify, session, current_app
@@ -21,18 +17,15 @@ auth_bp = Blueprint('auth', __name__)
 
 @auth_bp.route("/register", methods=["POST"])
 def register():
-    """Register a new user with encrypted credentials."""
+
     current_app.limiter.limit("5 per minute")(lambda: None)()
     
     try:
-        # Get IP address for rate limiting
         ip_address = get_remote_address()
         
-        # Check if IP is locked
         if is_ip_locked(ip_address):
             return jsonify({"error": "IP address temporarily locked"}), 423
         
-        # Get encrypted payload
         encrypted_payload = request.json
         if not encrypted_payload:
             return jsonify({"error": "No data provided"}), 400
@@ -47,13 +40,11 @@ def register():
             increment_ip_failed_attempt(ip_address)
             return jsonify({"error": "Invalid encrypted data"}), 400
         
-        # Extract user data
         username = user_data.get("username")
         password = user_data.get("password")
         public_key = user_data.get("public_key")
         private_key = user_data.get("private_key")
         
-        # Validate input
         is_valid, error = validate_username(username)
         if not is_valid:
             increment_ip_failed_attempt(ip_address)
@@ -73,10 +64,8 @@ def register():
             increment_ip_failed_attempt(ip_address)
             return jsonify({"error": "Private key is required"}), 400
         
-        # Hash password
         password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
         
-        # Store user in database
         conn = get_db()
         cursor = conn.cursor()
         try:
@@ -86,7 +75,6 @@ def register():
             )
             conn.commit()
             
-            # Reset IP failed attempts on successful registration
             reset_ip_failed_login(ip_address)
             
             logging.info(f"User {username} registered successfully")
@@ -110,23 +98,19 @@ def register():
 
 @auth_bp.route("/login", methods=["POST"])
 def login():
-    """Login user with encrypted credentials."""
+
     current_app.limiter.limit("10 per minute")(lambda: None)()
     
     try:
-        # Get IP address for rate limiting
         ip_address = get_remote_address()
         
-        # Check if IP is locked
         if is_ip_locked(ip_address):
             return jsonify({"error": "IP address temporarily locked"}), 423
         
-        # Get encrypted payload
         encrypted_payload = request.json
         if not encrypted_payload:
             return jsonify({"error": "No data provided"}), 400
         
-        # Decrypt the payload
         try:
             decrypted_data = decrypt_hybrid_payload(encrypted_payload)
             import json
@@ -143,12 +127,10 @@ def login():
             increment_ip_failed_attempt(ip_address)
             return jsonify({"error": "Username and password are required"}), 400
         
-        # Check if user account is locked
         if is_user_locked(username):
             increment_ip_failed_attempt(ip_address)
             return jsonify({"error": "Account temporarily locked"}), 423
         
-        # Verify credentials
         conn = get_db()
         cursor = conn.cursor()
         cursor.execute(
@@ -158,13 +140,11 @@ def login():
         user = cursor.fetchone()
         conn.close()
         
-        # Fix: Handle the password hash properly
         if not user:
             increment_failed_login(username)
             increment_ip_failed_attempt(ip_address)
             return jsonify({"error": "Invalid credentials"}), 401
         
-        # The password hash from database is a string, so we need to encode it to bytes
         stored_password_hash = user[1]
         if isinstance(stored_password_hash, str):
             stored_password_hash = stored_password_hash.encode('utf-8')
@@ -174,11 +154,9 @@ def login():
             increment_ip_failed_attempt(ip_address)
             return jsonify({"error": "Invalid credentials"}), 401
         
-        # Reset failed login attempts
         reset_failed_login(username)
         reset_ip_failed_login(ip_address)
         
-        # Create session
         session_id = create_user_session(username)
         session['session_id'] = session_id
         session['username'] = username
@@ -188,7 +166,7 @@ def login():
         return jsonify({
             "message": "Login successful",
             "username": username,
-            "private_key": user[2]  # Return encrypted private key
+            "private_key": user[2]  
         })
         
     except Exception as e:
@@ -198,7 +176,7 @@ def login():
 @auth_bp.route("/logout", methods=["POST"])
 @require_auth
 def logout():
-    """Logout user and invalidate session."""
+
     current_app.limiter.limit("10 per minute")(lambda: None)()
     
     try:
@@ -220,7 +198,7 @@ def logout():
 @auth_bp.route("/session/status", methods=["GET"])
 @require_auth
 def session_status():
-    """Get current session status."""
+
     current_app.limiter.limit("30 per minute")(lambda: None)()
     
     try:
@@ -254,7 +232,7 @@ def session_status():
 
 @auth_bp.route("/admin/cleanup", methods=["POST"])
 def cleanup():
-    """Clean up expired sessions and IP locks."""
+
     current_app.limiter.limit("1 per hour")(lambda: None)()
     
     try:

@@ -1,8 +1,6 @@
-#!/usr/bin/env python3
-
 import os
 import logging
-from dotenv import load_dotenv
+
 from flask import Flask
 from flask_cors import CORS
 from flask_session import Session
@@ -11,78 +9,66 @@ from flask_limiter.util import get_remote_address
 from datetime import timedelta
 from redis import Redis
 from werkzeug.middleware.proxy_fix import ProxyFix
-from whitenoise import WhiteNoise  # ADD THIS IMPORT
 
-# Load environment variables
-load_dotenv()
+def load_env_file(filepath=".env"):
+    if not os.path.exists(filepath):
+        return
+    with open(filepath) as f:
+        for line in f:
+            if line.strip() == '' or line.startswith('#'):
+                continue
+            key, sep, value = line.strip().partition('=')
+            if sep == '=':
+                os.environ[key] = value
 
-# Configure logging
+load_env_file()
+
 logging.basicConfig(
     level=logging.INFO, 
     format="%(asctime)s - %(levelname)s - %(message)s"
 )
 
 def create_app():
-    """Create and configure the Flask application."""
     app = Flask(__name__)
-    
-    # CRITICAL: Use consistent secret key across all workers
-    app.secret_key = os.getenv('SECRET_KEY', 'whispi-secret-key-change-me-in-production')
+    app.secret_key = os.environ['SECRET_KEY']
 
-    # Flask compatibility fix
     if not hasattr(Flask, "ensure_sync"):
         def ensure_sync(self, fn):
             return fn
         Flask.ensure_sync = ensure_sync
-    
-    # Apply ProxyFix FIRST for Nginx
+
     app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
-    
-    # ADD WHITENOISE: Serve static files automatically with Gunicorn
-    app.wsgi_app = WhiteNoise(
-        app.wsgi_app,
-        root=os.path.join(os.path.dirname(__file__), 'static'),
-        prefix='/static/',
-        max_age=31536000  # Cache for 1 year in production
-    )
-    
-    # Configure CORS
+
     CORS(app, supports_credentials=True)
-    
-    # Configure Flask-Session - SIMPLIFIED
+
     app.config.update(
         SESSION_TYPE='redis',
-        SESSION_REDIS=Redis(host='localhost', port=6379),
+        SESSION_REDIS=Redis(host=os.environ['REDIS_HOST'], port=int(os.environ['REDIS_PORT'])),
         SESSION_PERMANENT=True,
         SESSION_USE_SIGNER=True,
-        SESSION_KEY_PREFIX='whispi:',
+        SESSION_KEY_PREFIX=os.environ['SESSION_KEY_PREFIX'],
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SECURE=True,
-        SESSION_COOKIE_SAMESITE='Lax',  # FIXED: Changed from 'None' to 'Lax'
-        PERMANENT_SESSION_LIFETIME=timedelta(hours=24)
+        SESSION_COOKIE_SAMESITE='Lax',
+        PERMANENT_SESSION_LIFETIME=timedelta(hours=int(os.environ['SESSION_LIFETIME_HOURS']))
     )   
-    
-    # Initialize session
+
     Session(app)
-    
-    # Initialize rate limiter
+
     limiter = Limiter(
         app=app,
         key_func=get_remote_address,
-        default_limits=["200 per day", "50 per hour"],
-        storage_uri="redis://localhost:6379",
+        default_limits=[],
+        storage_uri=f"redis://{os.environ['REDIS_HOST']}:{os.environ['REDIS_PORT']}",
         headers_enabled=True
     )
     
-    # Store limiter in app context for use in routes
     app.limiter = limiter
-    
-    # Initialize database
+
     from app.database import init_database, cleanup_expired_sessions
     init_database()
     cleanup_expired_sessions()
     
-    # Register blueprints
     from app.routes.pages import pages_bp
     from app.routes.auth import auth_bp  
     from app.routes.chat import chat_bp
@@ -91,7 +77,6 @@ def create_app():
     app.register_blueprint(auth_bp)
     app.register_blueprint(chat_bp)
     
-    # Error handlers
     @app.errorhandler(404)
     def not_found(error):
         from flask import jsonify
@@ -120,10 +105,8 @@ def create_app():
     return app
 
 def main():
-    """Main entry point."""
-    # Check for required files
-    private_key_path = os.getenv('PRIVATE_KEY_PATH', 'private.pem')
-    public_key_path = os.getenv('PUBLIC_KEY_PATH', 'public.pem')
+    private_key_path = os.environ['PRIVATE_KEY_PATH']
+    public_key_path = os.environ['PUBLIC_KEY_PATH']
     required_files = [private_key_path, public_key_path]
     
     for file in required_files:
@@ -131,21 +114,17 @@ def main():
             print(f"ERROR: {file} not found. Please generate your RSA key pair first.")
             exit(1)
     
-    # Ensure session directory exists
-    session_dir = os.getenv('SESSION_FILE_DIR', '/tmp/flask_session')
+    session_dir = os.environ['SESSION_FILE_DIR']
     os.makedirs(session_dir, exist_ok=True)
     
-    # Create Flask app
     app = create_app()
     
-    # Get SSL configuration from environment variables
-    ssl_cert = os.getenv('SSL_CERT_PATH', '/home/pi/certs/whispi.secure.pem')
-    ssl_key = os.getenv('SSL_KEY_PATH', '/home/pi/certs/whispi.secure-key.pem')
-    host = os.getenv('HOST', '0.0.0.0')
-    port = int(os.getenv('PORT', '443'))
-    debug = os.getenv('DEBUG', 'False').lower() == 'true'
+    ssl_cert = os.environ['SSL_CERT_PATH']
+    ssl_key = os.environ['SSL_KEY_PATH']
+    host = os.environ['HOST']
+    port = int(os.environ['PORT'])
+    debug = os.environ['DEBUG'].lower() == 'true'
     
-    # Run server with SSL
     app.run(
         host=host,
         port=port,

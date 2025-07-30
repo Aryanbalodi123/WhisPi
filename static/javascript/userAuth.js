@@ -1,33 +1,12 @@
-// Global variables for session management (only declare once)
 window.currentUser = window.currentUser || null;
 window.userPrivateKey = window.userPrivateKey || null;
 window.userSigningKey = window.userSigningKey || null;
 
-// ——— Validation Functions ———
-function validateUsername(username) {
-  if (!username || username.length < 3 || username.length > 50) {
-    return 'Username must be between 3 and 50 characters';
-  }
-  if (!/^[a-zA-Z0-9_-]+$/.test(username)) {
-    return 'Username may only contain letters, numbers, hyphens, and underscores';
-  }
-  return null;
-}
-
-function validatePassword(password) {
-  if (!password || password.length < 8) {
-    return 'Password must be at least 8 characters long';
-  }
-  if (!/[a-z]/.test(password) || !/[A-Z]/.test(password) || !/\d/.test(password)) {
-    return 'Password must include uppercase, lowercase, and a number';
-  }
-  return null;
-}
 
 // ——— Session Management Functions ———
 async function restoreSession() {
   try {
-    // First check if we have session data in sessionStorage
+
     const raw = sessionStorage.getItem("secureChatSession");
     if (!raw) {
       throw new Error("No session data in sessionStorage");
@@ -38,18 +17,17 @@ async function restoreSession() {
       throw new Error("Invalid session data format");
     }
 
-    // Then check if the server session is still valid
     const statusRes = await fetch("/session/status", {
       method: "GET",
-      credentials: "include", // FIXED: Include credentials
+      credentials: "include", 
     });
 
     if (!statusRes.ok) {
       throw new Error("Server session invalid or expired");
     }
     
-    // Restore the user's private key
-    window.currentUser = username; // FIXED: Set window.currentUser
+    
+    window.currentUser = username; 
     const buf = Uint8Array.from(keyBuffer).buffer;
     
     window.userPrivateKey = await crypto.subtle.importKey(
@@ -73,13 +51,13 @@ async function restoreSession() {
     return true;
   } catch (err) {
     log(`Session restore failed: ${err.message}`);
-    // Clear any invalid session data
+   
     sessionStorage.removeItem("secureChatSession");
     
-    // Only show error message if we're on the chat page
+ 
     if (window.location.pathname === '/chat.html') {
       showMessage("Session expired or invalid. Please log in again.", "error");
-      // Redirect to login page
+     
       window.location.href = "/";
     }
     
@@ -96,7 +74,7 @@ function startAutoLogoutTimer() {
     try {
       await fetch("/logout", {
         method: "POST",
-        credentials: "include", // FIXED: Include credentials
+        credentials: "include",
       });
     } catch (err) {
       console.error("Logout failed:", err);
@@ -125,10 +103,11 @@ function isLoggedIn() {
 }
 
 // ——— User Management Functions ———
+
 async function fetchUsers() {
   try {
     const res = await fetch("/users", {
-      credentials: "include" // FIXED: Include credentials
+      credentials: "include" 
     });
     if (!res.ok) throw new Error(res.statusText);
     
@@ -174,49 +153,49 @@ async function fetchUsers() {
   }
 }
 
-// ——— Event Handlers ———
+
 document.addEventListener('DOMContentLoaded', async function() {
-  // Check what page we're on
+
   const isOnChatPage = window.location.pathname === '/chat.html';
   const isOnLoginPage = window.location.pathname === '/' || window.location.pathname.includes('login');
   
   if (isOnChatPage) {
-    // On chat page - try to restore session
+
     const sessionRestored = await restoreSession();
     if (sessionRestored) {
-      // Session restored successfully, fetch users
+
       await fetchUsers();
     }
-    // If session restore failed, user will be redirected to login
+
     return;
   }
   
   if (isOnLoginPage) {
-    // On login page - check if user is already logged in
+
     const raw = sessionStorage.getItem("secureChatSession");
     if (raw) {
       try {
         const { username } = JSON.parse(raw);
         if (username) {
-          // User might still be logged in, check server session
+ 
           const statusRes = await fetch("/session/status", {
             method: "GET",
-            credentials: "include", // FIXED: Include credentials
+            credentials: "include", 
           });
           
           if (statusRes.ok) {
-            // User is already logged in, redirect to chat
+          
             window.location.href = "/chat.html";
             return;
           }
         }
       } catch (err) {
-        // Invalid session data, clear it
+ 
         sessionStorage.removeItem("secureChatSession");
       }
     }
     
-    // User is not logged in, set up login/register handlers
+
     setupLoginHandlers();
   }
 });
@@ -248,7 +227,7 @@ function setupLoginHandlers() {
         const response = await fetch('/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          credentials: 'include', // FIXED: Include credentials to save session cookie
+          credentials: 'include',
           body: JSON.stringify(encryptedPayload)
         });
         
@@ -333,7 +312,7 @@ function setupLoginHandlers() {
         const response = await fetch('/register', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          credentials: 'include', // FIXED: Include credentials
+          credentials: 'include', 
           body: JSON.stringify(encryptedPayload)
         });
         

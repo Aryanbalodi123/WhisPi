@@ -1,7 +1,3 @@
-"""
-Utility functions for WhisPI application.
-"""
-
 import os
 import base64
 import logging
@@ -14,7 +10,7 @@ from cryptography.hazmat.backends import default_backend
 from app.database import validate_session
 
 def validate_username(username):
-    """Validate username format and constraints."""
+
     if not username:
         return False, "Username is required"
     if len(username) < 3:
@@ -26,17 +22,17 @@ def validate_username(username):
     return True, ""
 
 def validate_password(password):
-    """Validate password format and constraints."""
+    
     if not password:
         return False, "Password is required"
-    if len(password) < 8:  # Increased minimum length
+    if len(password) < 8:  
         return False, "Password must be at least 8 characters"
     if len(password) > 128:
         return False, "Password must be less than 128 characters"
     return True, ""
 
 def validate_public_key(public_key):
-    """Validate public key format."""
+  
     if not public_key:
         return False, "Public key is required"
     if not public_key.startswith("-----BEGIN PUBLIC KEY-----"):
@@ -46,16 +42,13 @@ def validate_public_key(public_key):
     return True, ""
 
 def decrypt_hybrid_payload(encrypted_payload):
-    """
-    Decrypt hybrid encrypted payload using server's private key.
-    Payload format: {encrypted_aes_key, iv, encrypted_data}
-    """
+
     try:
         encrypted_aes_key = base64.b64decode(encrypted_payload["encrypted_aes_key"])
         iv = base64.b64decode(encrypted_payload["iv"])
         encrypted_data = base64.b64decode(encrypted_payload["encrypted_data"])
         
-        # Load server's private key
+
         secret = os.getenv("PRIVATE_KEY_PASSWORD")
         if not secret:
             raise ValueError("PRIVATE_KEY_PASSWORD not found in environment variables")
@@ -93,7 +86,7 @@ def decrypt_hybrid_payload(encrypted_payload):
         raise
 
 def require_auth(f):
-    """Decorator to require valid session authentication."""
+
     @wraps(f)
     def decorated_function(*args, **kwargs):
         session_id = session.get('session_id')
@@ -102,7 +95,6 @@ def require_auth(f):
         if not username:
             return jsonify({"error": "Authentication required"}), 401
         
-        # Update session username for consistency
         session['username'] = username
         return f(*args, **kwargs)
     

@@ -1,7 +1,4 @@
-"""
-Chat and messaging routes for WhisPI application.
-"""
-
+import datetime
 import json
 import logging
 from flask import Blueprint, request, jsonify, session, current_app
@@ -13,7 +10,7 @@ chat_bp = Blueprint('chat', __name__)
 @chat_bp.route("/get_key/<username>", methods=["GET"])
 @require_auth
 def get_key(username):
-    """Get public key for specified user."""
+
     current_app.limiter.limit("30 per minute")(lambda: None)()
     
     try:
@@ -35,7 +32,7 @@ def get_key(username):
 @chat_bp.route("/users", methods=["GET"])
 @require_auth
 def users():
-    """Get list of all users except current user."""
+
     current_app.limiter.limit("20 per minute")(lambda: None)()
     
     try:
@@ -53,30 +50,37 @@ def users():
         logging.error(f"Error fetching users: {e}")
         return jsonify({"error": "Failed to fetch users"}), 500
 
+def get_current_utc_timestamp():
+
+    return datetime.now(datetime.timezone.utc).isoformat()
+
 @chat_bp.route("/send", methods=["POST"])
 @require_auth
 def send():
-    """Send an encrypted message to another user."""
+
     current_app.limiter.limit("30 per minute")(lambda: None)()
     
     try:
         payload_data = request.json
-        from_user = session['username']  # Override with session username
+        from_user = session['username']
         to_user = payload_data.get("to_user")
-        message = payload_data.get("message")
+        encrypted_message = payload_data.get("encrypted_message")
+        iv = payload_data.get("iv")
+        encrypted_key_for_sender = payload_data.get("encrypted_key_for_sender")
+        encrypted_key_for_recipient = payload_data.get("encrypted_key_for_recipient")
         signature = payload_data.get("signature", "")
         
-        # Validate required fields
-        if not to_user or not message:
+        client_timestamp = payload_data.get("client_timestamp")
+        if client_timestamp:
+            message_timestamp = client_timestamp
+            logging.info(f"Using client timestamp: {client_timestamp}")
+        else:
+            message_timestamp = get_current_utc_timestamp()
+            logging.info(f"Using server timestamp (fallback): {message_timestamp}")
+        
+        if not all([to_user, encrypted_message, iv, encrypted_key_for_sender, encrypted_key_for_recipient]):
             return jsonify({"error": "Missing required fields"}), 400
         
-        # Validate message format (encrypted object)
-        if not isinstance(message, dict) or not all(
-            key in message for key in ["encrypted_aes_key", "iv", "encrypted_data"]
-        ):
-            return jsonify({"error": "Invalid message format"}), 400
-        
-        # Verify recipient exists
         conn = get_db()
         cursor = conn.cursor()
         cursor.execute("SELECT username FROM users WHERE username = ?", (to_user,))
@@ -84,16 +88,25 @@ def send():
             conn.close()
             return jsonify({"error": "Recipient not found"}), 400
         
-        # Store encrypted message
         cursor.execute(
-            "INSERT INTO messages (from_user, to_user, message, signature) VALUES (?, ?, ?, ?)",
-            (from_user, to_user, json.dumps(message), signature)
+            """INSERT INTO messages 
+               (from_user, to_user, encrypted_message, iv, encrypted_key_for_sender, encrypted_key_for_recipient, signature, created_at) 
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            (from_user, to_user, encrypted_message, iv, encrypted_key_for_sender, encrypted_key_for_recipient, signature, message_timestamp)
         )
+        
+        message_id = cursor.lastrowid
         conn.commit()
         conn.close()
         
-        logging.info(f"Message sent from {from_user} to {to_user}")
-        return jsonify({"status": "Message sent"})
+        logging.info(f"Message sent from {from_user} to {to_user} with timestamp {message_timestamp}")
+        
+        return jsonify({
+            "status": "Message sent",
+            "timestamp": message_timestamp,
+            "message_id": message_id,
+            "success": True
+        })
         
     except Exception as e:
         logging.error(f"Error sending message: {e}")
@@ -102,6 +115,7 @@ def send():
 @chat_bp.route("/inbox/<username>", methods=["GET"])
 @require_auth
 def inbox(username):
+
     current_app.limiter.limit("60 per minute")(lambda: None)()
 
     try:
@@ -111,15 +125,15 @@ def inbox(username):
         conn = get_db()
         cursor = conn.cursor()
 
-        # Get all messages sent to the user
         cursor.execute(
             """
-            SELECT from_user, to_user, message, signature, created_at 
+            SELECT from_user, to_user, encrypted_message, iv, encrypted_key_for_sender, 
+                   encrypted_key_for_recipient, signature, created_at, id
             FROM messages 
-            WHERE to_user = ? 
-            ORDER BY created_at ASC
+            WHERE to_user = ? OR from_user = ?
+            ORDER BY created_at ASC, id ASC
             """,
-            (username,)
+            (username, username)
         )
         rows = cursor.fetchall()
 
@@ -128,38 +142,47 @@ def inbox(username):
         for row in rows:
             from_user = row[0]
             to_user = row[1]
-            raw_message = row[2]
-            signature = row[3] or ""
-            timestamp = row[4]
+            encrypted_message = row[2]
+            iv = row[3]
+            encrypted_key_for_sender = row[4]
+            encrypted_key_for_recipient = row[5]
+            signature = row[6] or ""
+            timestamp = row[7]  
+            message_id = row[8]
 
             try:
-                
+                # Check if sender is online
                 cursor.execute(
                     "SELECT is_active FROM user_sessions WHERE username = ? AND is_active = 1",
                     (from_user,)
                 )
                 result = cursor.fetchone()
-                is_online = bool(result and result[0])  
+                is_online = bool(result and result[0])
 
-                encrypted_message = json.loads(raw_message)
                 message_data = {
                     "from_user": from_user,
                     "to_user": to_user,
                     "encrypted_message": encrypted_message,
+                    "iv": iv,
+                    "encrypted_key_for_sender": encrypted_key_for_sender,
+                    "encrypted_key_for_recipient": encrypted_key_for_recipient,
                     "signature": signature,
-                    "timestamp": timestamp,
-                    "is_online": is_online
+                    "timestamp": timestamp, 
+                    "created_at": timestamp,  
+                    "is_online": is_online,
+                    "message_id": message_id
                 }
                 messages.append(message_data)
 
-            except json.JSONDecodeError as e:
-                logging.error(f"Failed to parse message from {from_user}: {e}")
+            except Exception as e:
+                logging.error(f"Failed to process message from {from_user}: {e}")
                 continue
 
+        conn.close()
+        
+        logging.info(f"Retrieved {len(messages)} messages for {username}")
         return jsonify(messages)
 
     except Exception as e:
         logging.error(f"Error in inbox endpoint: {e}")
         return jsonify({"error": "Failed to retrieve messages"}), 500
-
-    

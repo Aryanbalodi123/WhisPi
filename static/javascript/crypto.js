@@ -14,14 +14,13 @@ function arrayBufferToPem(buffer, label) {
   return `-----BEGIN ${label}-----\n${lines}\n-----END ${label}-----`;
 }
 
-// Alternative name for compatibility
 function pemToArrayBuffer(pem) {
   return pemToBuffer(pem);
 }
 
 // ——— Hybrid Encryption ———
+
 async function hybridEncryptPayload(jsonString) {
-  // Generate AES key
   const aesKey = await crypto.subtle.generateKey(
     { name: 'AES-GCM', length: 256 },
     true,
@@ -37,7 +36,7 @@ async function hybridEncryptPayload(jsonString) {
     encodedData
   );
 
-  // Export raw AES key
+  
   const rawAesKey = await crypto.subtle.exportKey('raw', aesKey);
 
   // Fetch server RSA public key
@@ -64,7 +63,8 @@ async function hybridEncryptPayload(jsonString) {
   };
 }
 
-// ——— Private Key Encryption/Decryption ———
+
+
 async function encryptPrivateKey(privateKeyPem, password) {
   const salt = crypto.getRandomValues(new Uint8Array(32));
   const iv = crypto.getRandomValues(new Uint8Array(16));
@@ -129,7 +129,7 @@ async function decryptPrivateKey(encryptedData, password) {
     },
     passwordKey,
     { name: 'AES-GCM', length: 256 },
-    true, // extractable so we can export it
+    true, 
     ['decrypt']
   );
 
@@ -143,12 +143,13 @@ async function decryptPrivateKey(encryptedData, password) {
     'pkcs8',
     decryptedBuffer,
     { name: 'RSA-OAEP', hash: 'SHA-256' },
-    true,  // extractable so we can export raw later
+    true,  
     ['decrypt']
   );
 }
 
 // ——— Public Key Operations ———
+
 async function importPublicKey(pem) {
   return crypto.subtle.importKey(
     "spki",
@@ -160,6 +161,7 @@ async function importPublicKey(pem) {
 }
 
 // ——— Digital Signatures ———
+
 async function signMessage(message, privateKey) {
   const encoded = new TextEncoder().encode(message);
   const signature = await crypto.subtle.sign(
@@ -172,7 +174,7 @@ async function signMessage(message, privateKey) {
 
 async function verifySignature(message, signatureB64, publicKeyPem) {
   if (!signatureB64) {
-    return null; // No signature to verify
+    return null; 
   }
   
   try {
@@ -201,70 +203,106 @@ async function verifySignature(message, signatureB64, publicKeyPem) {
 }
 
 // ——— Message Encryption/Decryption ———
-async function encryptMessage(username, message) {
-  const res = await fetch(`/get_key/${encodeURIComponent(username)}`);
-  if (!res.ok) throw new Error("Failed to fetch public key");
+
+async function encryptMessage(recipientUsername, message) {
+
+  const recipientRes = await fetch(`/get_key/${encodeURIComponent(recipientUsername)}`);
+  if (!recipientRes.ok) throw new Error("Failed to fetch recipient's public key");
   
-  const { public_key } = await res.json();
-  const pub = await importPublicKey(public_key);
+  const { public_key: recipientPublicKeyPem } = await recipientRes.json();
+  const recipientPublicKey = await importPublicKey(recipientPublicKeyPem);
   
-  const aes = await crypto.subtle.generateKey(
+ 
+  const senderRes = await fetch(`/get_key/${encodeURIComponent(window.currentUser)}`);
+  if (!senderRes.ok) throw new Error("Failed to fetch sender's public key");
+  
+  const { public_key: senderPublicKeyPem } = await senderRes.json();
+  const senderPublicKey = await importPublicKey(senderPublicKeyPem);
+  
+
+  const aesKey = await crypto.subtle.generateKey(
     { name: "AES-GCM", length: 256 },
     true,
     ["encrypt"]
   );
   
+S
   const iv = crypto.getRandomValues(new Uint8Array(12));
-  const ct = await crypto.subtle.encrypt(
+  const encryptedMessage = await crypto.subtle.encrypt(
     { name: "AES-GCM", iv },
-    aes,
+    aesKey,
     new TextEncoder().encode(message)
   );
   
-  const raw = await crypto.subtle.exportKey("raw", aes);
-  const encKey = await crypto.subtle.encrypt(
+
+  const rawAesKey = await crypto.subtle.exportKey("raw", aesKey);
+  
+
+  const encryptedKeyForRecipient = await crypto.subtle.encrypt(
     { name: "RSA-OAEP" },
-    pub,
-    raw
+    recipientPublicKey,
+    rawAesKey
+  );
+  
+
+  const encryptedKeyForSender = await crypto.subtle.encrypt(
+    { name: "RSA-OAEP" },
+    senderPublicKey,
+    rawAesKey
   );
   
   return {
-    encrypted_aes_key: btoa(
-      String.fromCharCode(...new Uint8Array(encKey))
-    ),
+    encrypted_message: btoa(String.fromCharCode(...new Uint8Array(encryptedMessage))),
     iv: btoa(String.fromCharCode(...iv)),
-    encrypted_data: btoa(String.fromCharCode(...new Uint8Array(ct))),
+    encrypted_key_for_recipient: btoa(String.fromCharCode(...new Uint8Array(encryptedKeyForRecipient))),
+    encrypted_key_for_sender: btoa(String.fromCharCode(...new Uint8Array(encryptedKeyForSender)))
   };
 }
 
-async function decryptMessage(encrypted, privKey) {
-  const ek = Uint8Array.from(atob(encrypted.encrypted_aes_key), (c) =>
-    c.charCodeAt(0)
-  );
-  const iv = Uint8Array.from(atob(encrypted.iv), (c) => c.charCodeAt(0));
-  const data = Uint8Array.from(atob(encrypted.encrypted_data), (c) =>
-    c.charCodeAt(0)
-  );
+
+async function decryptMessage(encryptedData, currentUser, messageFromUser, messageToUser) {
+
+  const isSender = currentUser === messageFromUser;
+  const isRecipient = currentUser === messageToUser;
   
-  const rawAes = await crypto.subtle.decrypt(
+  if (!isSender && !isRecipient) {
+    throw new Error("User is neither sender nor recipient of this message");
+  }
+
+  const encryptedAesKey = isSender 
+    ? encryptedData.encrypted_key_for_sender 
+    : encryptedData.encrypted_key_for_recipient;
+  
+  if (!encryptedAesKey) {
+    throw new Error(`No encrypted key available for ${isSender ? 'sender' : 'recipient'}`);
+  }
+  
+
+  const encryptedKeyBytes = Uint8Array.from(atob(encryptedAesKey), c => c.charCodeAt(0));
+  const iv = Uint8Array.from(atob(encryptedData.iv), c => c.charCodeAt(0));
+  const encryptedMessageBytes = Uint8Array.from(atob(encryptedData.encrypted_message), c => c.charCodeAt(0));
+  
+
+  const rawAesKey = await crypto.subtle.decrypt(
     { name: "RSA-OAEP" },
-    privKey,
-    ek
+    window.userPrivateKey,
+    encryptedKeyBytes
   );
-  
+
   const aesKey = await crypto.subtle.importKey(
     "raw",
-    rawAes,
+    rawAesKey,
     { name: "AES-GCM" },
     false,
     ["decrypt"]
   );
   
-  const pt = await crypto.subtle.decrypt(
+
+  const decryptedMessage = await crypto.subtle.decrypt(
     { name: "AES-GCM", iv },
     aesKey,
-    data
+    encryptedMessageBytes
   );
   
-  return new TextDecoder().decode(pt);
+  return new TextDecoder().decode(decryptedMessage);
 }

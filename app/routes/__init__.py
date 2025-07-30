@@ -1,7 +1,3 @@
-"""
-Routes module for WhisPI application.
-"""
-
 from .pages import pages_bp
 from .auth import auth_bp
 from .chat import chat_bp
