@@ -166,11 +166,15 @@ if check_internet; then
     
     echo "📦 Installing system packages..."
     sudo apt install -y hostapd dnsmasq openssl python3-flask python3-pip python3-venv \
-                        nginx supervisor
+                        nginx redis-server supervisor
     
     echo "🔧 Installing development dependencies for Python package compilation..."
     sudo apt install -y build-essential libssl-dev libffi-dev python3-dev pkg-config
     echo "✅ Development tools ready for building Python packages"
+    
+    echo "🔴 Configuring Redis..."
+    sudo systemctl enable redis-server
+    sudo systemctl start redis-server
     
     echo "🐍 Creating Python virtual environment..."
     VENV_PATH="$HOME/envs/whispi"
@@ -260,6 +264,13 @@ PRIVATE_KEY_PATH=$(pwd)/certs/private.pem
 PUBLIC_KEY_PATH=$(pwd)/certs/public.pem
 PRIVATE_KEY_PASSWORD=$PEM_PASS
 
+REDIS_HOST=localhost
+REDIS_PORT=6379
+REDIS_URL=redis://localhost:6379
+
+SESSION_TYPE=redis
+SESSION_KEY_PREFIX=whispi:
+SESSION_LIFETIME_HOURS=24
 SESSION_FILE_DIR=/tmp/flask_session
 EOF
 
@@ -418,6 +429,7 @@ cat > 01_start_whispi_services.sh << 'EOF'
 #!/bin/bash
 echo "🚀 Starting WhisPi services..."
 
+sudo systemctl start redis-server
 sudo systemctl start nginx
 sudo systemctl start supervisor
 
@@ -449,6 +461,7 @@ sudo systemctl enable hostapd
 sudo systemctl enable dnsmasq
 sudo systemctl enable nginx
 sudo systemctl enable supervisor
+sudo systemctl enable redis-server
 sudo systemctl daemon-reload
 
 echo "✅ Services configured!"
@@ -536,9 +549,19 @@ Local Domain: $SITE_URL
 Pi IP Address: $LOCAL_IP
 PEM Password: [PROTECTED]
 
+Environment Variables Added:
+- SECRET_KEY (auto-generated)
+- DEBUG, HOST, PORT
+- SSL_CERT_PATH, SSL_KEY_PATH
+- PRIVATE_KEY_PATH, PUBLIC_KEY_PATH
+- PRIVATE_KEY_PASSWORD
+- REDIS_HOST, REDIS_PORT, REDIS_URL
+- SESSION_TYPE, SESSION_KEY_PREFIX
+- SESSION_LIFETIME_HOURS, SESSION_FILE_DIR
+
 Files Generated:
 - certificates in ./certs/
-- .env (environment variables with PEM password)
+- .env (complete environment variables)
 - config/gunicorn.py (Gunicorn settings)
 - 01_start_whispi_services.sh (start services)
 - 02_stop_whispi_services.sh (stop services)  
@@ -558,6 +581,7 @@ Management Commands:
 
 Architecture:
 - Nginx (Port 443) → Gunicorn (Port 8000) → Flask App
+- Redis for sessions and rate limiting
 - Supervisor for process management
 EOF
 
