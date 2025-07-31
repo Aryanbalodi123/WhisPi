@@ -226,7 +226,7 @@ async function encryptMessage(recipientUsername, message) {
     ["encrypt"]
   );
   
-S
+
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const encryptedMessage = await crypto.subtle.encrypt(
     { name: "AES-GCM", iv },
