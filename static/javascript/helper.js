@@ -2,6 +2,97 @@ function log(msg) {
   console.log(`[DEBUG] ${msg}`);
 }
 
+
+ 
+      document.getElementById("dropdownButton").addEventListener("click", (e) => {
+        e.stopPropagation();
+        const dropdown = document.getElementById("dropdownMenu");
+        const button = document.getElementById("dropdownButton");
+        
+        if (dropdown.classList.contains("show")) {
+          dropdown.classList.remove("show");
+          button.style.transform = "scale(1)";
+        } else {
+          dropdown.classList.add("show");
+          button.style.transform = "scale(0.95)";
+        }
+      });
+
+      
+      document.addEventListener("click", (e) => {
+        const dropdown = document.getElementById("dropdownMenu");
+        const button = document.getElementById("dropdownButton");
+        if (!dropdown.contains(e.target) && !button.contains(e.target)) {
+          dropdown.classList.remove("show");
+          button.style.transform = "scale(1)";
+        }
+      });
+
+      
+      document.getElementById("logoutButton").addEventListener("click", async (e) => {
+        e.preventDefault();
+        const button = e.target.closest('.logout-button');
+        
+        
+        button.style.pointerEvents = 'none';
+        button.innerHTML = `
+          <svg class="logout-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+          </svg>
+          <span>Signing out...</span>
+        `;
+        
+        try {
+          const response = await fetch("/logout", {
+            method: "POST",
+            credentials: "include"
+          });
+
+          if (response.ok) {
+            
+            button.innerHTML = `
+              <svg class="logout-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+              </svg>
+              <span>Success!</span>
+            `;
+            
+            
+            sessionStorage.clear();
+            localStorage.clear();
+            
+            setTimeout(() => {
+              window.location.href = "/";
+            }, 1000);
+          } else {
+            throw new Error('Logout failed');
+          }
+        } catch (err) {
+          console.error("Logout error:", err);
+          
+          
+          button.innerHTML = `
+            <svg class="logout-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+            <span>Failed to logout</span>
+          `;
+          
+          button.style.pointerEvents = 'auto';
+          
+          
+          setTimeout(() => {
+            button.innerHTML = `
+              <svg class="logout-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+              </svg>
+              <span>Sign Out</span>
+            `;
+          }, 2000);
+          
+          showMessage("Logout failed. Please try again.", "error");
+        }
+      });
 const card = document.getElementById("card");
 
 card.addEventListener("mousemove", (e) => {
@@ -79,88 +170,7 @@ function setButtonLoading(buttonId, loading) {
   }
 }
 
-document.getElementById("dropdownButton").addEventListener("click", (e) => {
-  e.stopPropagation();
-  const dropdown = document.getElementById("dropdownMenu");
-  const button = document.getElementById("dropdownButton");
 
-  if (dropdown.classList.contains("show")) {
-    dropdown.classList.remove("show");
-    button.style.transform = "scale(1)";
-  } else {
-    dropdown.classList.add("show");
-    button.style.transform = "scale(0.95)";
-  }
-});
-
-document.addEventListener("click", (e) => {
-  const dropdown = document.getElementById("dropdownMenu");
-  const button = document.getElementById("dropdownButton");
-  if (!dropdown.contains(e.target) && !button.contains(e.target)) {
-    dropdown.classList.remove("show");
-    button.style.transform = "scale(1)";
-  }
-});
-
-document.getElementById("logoutButton").addEventListener("click", async (e) => {
-  e.preventDefault();
-  const button = e.target.closest(".logout-button");
-
-  button.style.pointerEvents = "none";
-  button.innerHTML = `
-          <svg class="logout-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-          </svg>
-          <span>Signing out...</span>
-        `;
-
-  try {
-    const response = await fetch("/logout", {
-      method: "POST",
-      credentials: "include",
-    });
-
-    if (response.ok) {
-      button.innerHTML = `
-              <svg class="logout-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
-              </svg>
-              <span>Success!</span>
-            `;
-
-      sessionStorage.clear();
-      localStorage.clear();
-
-      setTimeout(() => {
-        window.location.href = "/";
-      }, 1000);
-    } else {
-      throw new Error("Logout failed");
-    }
-  } catch (err) {
-    console.error("Logout error:", err);
-
-    button.innerHTML = `
-            <svg class="logout-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-            </svg>
-            <span>Failed to logout</span>
-          `;
-
-    button.style.pointerEvents = "auto";
-
-    setTimeout(() => {
-      button.innerHTML = `
-              <svg class="logout-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
-              </svg>
-              <span>Sign Out</span>
-            `;
-    }, 2000);
-
-    showMessage("Logout failed. Please try again.", "error");
-  }
-});
 
 const messageInput = document.getElementById("messageInput");
 messageInput.addEventListener("input", function () {

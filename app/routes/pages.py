@@ -15,6 +15,12 @@ def chat():
     current_app.limiter.limit("10 per minute")(lambda: None)()
     return send_from_directory("static", "chat.html")
 
+@pages_bp.route("/chat.html")
+def chat():
+
+    current_app.limiter.limit("100 per minute")(lambda: None)()
+    return send_from_directory("static", "policy.html")
+
 @pages_bp.route("/get_public_key")
 def get_public_key():
 
