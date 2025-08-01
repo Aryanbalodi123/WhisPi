@@ -73,10 +73,8 @@ def send():
         client_timestamp = payload_data.get("client_timestamp")
         if client_timestamp:
             message_timestamp = client_timestamp
-            logging.info(f"Using client timestamp: {client_timestamp}")
         else:
             message_timestamp = get_current_utc_timestamp()
-            logging.info(f"Using server timestamp (fallback): {message_timestamp}")
         
         if not all([to_user, encrypted_message, iv, encrypted_key_for_sender, encrypted_key_for_recipient]):
             return jsonify({"error": "Missing required fields"}), 400
@@ -99,7 +97,6 @@ def send():
         conn.commit()
         conn.close()
         
-        logging.info(f"Message sent from {from_user} to {to_user} with timestamp {message_timestamp}")
         
         return jsonify({
             "status": "Message sent",
@@ -180,7 +177,6 @@ def inbox(username):
 
         conn.close()
         
-        logging.info(f"Retrieved {len(messages)} messages for {username}")
         return jsonify(messages)
 
     except Exception as e:

@@ -16,7 +16,7 @@ def chat():
     return send_from_directory("static", "chat.html")
 
 @pages_bp.route("/policy.html")
-def chat():
+def policy():
 
     current_app.limiter.limit("100 per minute")(lambda: None)()
     return send_from_directory("static", "policy.html")
@@ -25,5 +25,5 @@ def chat():
 def get_public_key():
 
     current_app.limiter.limit("20 per minute")(lambda: None)()
-    public_key_path = os.getenv('PUBLIC_KEY_PATH', '/home/pi/certs/public.pem')
+    public_key_path = os.getenv('PUBLIC_KEY_PATH', '/home/pi/WhisPi/certs/rsa_public.pem')
     return send_file(public_key_path, mimetype='application/octet-stream')

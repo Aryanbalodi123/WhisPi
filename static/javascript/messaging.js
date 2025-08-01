@@ -4,7 +4,6 @@ let processedMessages = new Set();
 let isInitialized = false;
 let isSending = false;
 
-
 function openChat(user) {
   currentChatUser = user;
   document.querySelectorAll('.user-item').forEach(el => el.classList.remove('active'));
@@ -20,8 +19,15 @@ function openChat(user) {
   document.getElementById('chatAvatar').textContent = user[0].toUpperCase();
   loadChatMessages(user);
   document.getElementById('chatArea').classList.add('active');
-}
+  
 
+
+ const container = document.querySelector('.chat-container');
+  container.classList.add('mobile-chat-active');
+
+
+
+}
 function loadChatMessages(user) {
   const container = document.getElementById('chatMessages');
   const msgs = window.chatMessages[user] || [];
@@ -34,11 +40,9 @@ function loadChatMessages(user) {
     const bubble = document.createElement('div');
     bubble.className = 'message-bubble';
 
-
     const textSpan = document.createElement('span');
     textSpan.className = 'message-text';
     textSpan.textContent = m.text;
-
 
     const timeSpan = document.createElement('span');
     timeSpan.className = 'message-time';
@@ -63,7 +67,6 @@ async function sendMessage() {
     const signature = await signMessage(text, window.userSigningKey);
     const encrypted = await encryptMessage(currentChatUser, text);
     
- 
     const now = new Date();
     const clientTimestamp = now.toISOString(); 
     const displayTime = now.toLocaleTimeString('en-IN', {
@@ -196,7 +199,9 @@ function clearOldProcessedMessages() {
   }
 }
 
+// Make functions available globally
 window.sendMessage = sendMessage;
+window.openChat = openChat;
 
 document.addEventListener('DOMContentLoaded', async () => {
   if (isInitialized) return;
