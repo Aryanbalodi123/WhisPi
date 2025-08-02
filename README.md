@@ -26,10 +26,12 @@ cd WhisPi
 
 # Run automated setup script
 bash setup.sh
-./setup.sh
 
-# Reboot (recommended)
+# Reboot (mandatory)
 sudo reboot
+
+# Run server
+./start.sh
 ```
 
 The setup script automatically handles:
@@ -81,7 +83,7 @@ WhisPi/
 
 ```bash
 # Check system status
-./06_check_status.sh
+./05_check_status.sh
 
 # Enable hotspot mode (disables internet)
 ./03_enable_hotspot.sh
@@ -89,11 +91,8 @@ WhisPi/
 # Restore normal WiFi mode
 ./04_restore_wifi.sh
 
-# Development mode with debug
-./05_development_mode.sh
-
 # Backup all configurations
-./07_backup_config.sh
+./06_backup_config.sh
 
 # Manual service control
 ./01_start_services.sh
@@ -116,10 +115,6 @@ After setup, the Pi will broadcast:
 - Regularly update the system: `sudo apt update && sudo apt upgrade`
 - Monitor for unauthorized access attempts
 - Consider implementing user management for larger deployments
-
-## 📄 License
-
-MIT License - see [LICENSE](LICENSE) file for details.
 
 ## 🤝 Contributing
 
