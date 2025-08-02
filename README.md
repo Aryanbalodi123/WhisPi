@@ -1,171 +1,134 @@
-# Whispi
+# WhisPi
 
-A fully offline, end-to-end encrypted chat server and web client hosted on a Raspberry Pi Zero W.  
-Users connect to the Pi's Wi-Fi, are redirected to `https://whispi.secure`, register/login, and exchange encrypted messages—all without Internet.
+A secure, offline, end-to-end encrypted chat server for Raspberry Pi Zero W. Users connect to the Pi's Wi-Fi hotspot and exchange encrypted messages via `https://whispi.secure` without requiring internet connectivity.
 
----
+## 🔒 Key Features
 
-## 🔒 Features
+- **Standalone Wi-Fi Hotspot**: Pi operates as an independent access point
+- **Local HTTPS Domain**: Secure communication via `https://whispi.secure`
+- **End-to-End Encryption**: RSA-4096 key exchange + AES-256 message encryption
+- **Digital Signatures**: Message authenticity verification
+- **Password-Protected Keys**: User private keys encrypted with individual passwords
+- **Rate Limiting**: Built-in protection against spam and abuse
+- **Completely Offline**: No internet connection required
 
-- **Offline Wi-Fi Hotspot**  
-  Pi acts as a standalone access point (no external router required)
-- **Local Domain & HTTPS**  
-  `whispi.secure` with a locally trusted CA certificate  
-- **Hybrid Encryption**  
-  RSA for key exchange + AES for message payloads  
-- **Password-Protected Private Keys**  
-  Users' RSA private keys are encrypted on the server with their password  
-- **Session-Based Authentication**  
-  Flask-Session stores login state server-side  
-- **Digital Signatures**  
-  RSASSA-PKCS1-v1_5 signatures on each message for authenticity  
-- **Rate Limiting**  
-  Flask-Limiter to prevent abuse  
+## 🚀 Quick Setup
 
----
+### Prerequisites
+- Raspberry Pi (tested with Raspberry Pi Zero W)
+- Internet connection (for initial setup only)
 
-## 📋 Prerequisites
-
-### On your development machine (to generate CA & certs):
-- OpenSSL  
-- `ssh` client
-
-### On the Raspberry Pi Zero W:
-- Raspberry Pi OS (Lite or Desktop)  
-- Python 3.9+  
-- `pip` / `venv`  
-- Git
-
----
-
-## 🚀 Installation & Setup
-
-### 1. Clone the repository
+### Installation
 ```bash
+# Clone the repository
 git clone https://github.com/yourusername/whispi.git
-cd whispi
+cd WhisPi
+
+# Run automated setup script
+bash setup.sh
+./setup.sh
+
+# Reboot (recommended)
+sudo reboot
 ```
 
-### 2. Create Python virtual environment
-```bash
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-```
+The setup script automatically handles:
+- System updates and package installation
+- Python environment with optimized packages
+- SSL certificate generation
+- Network configuration (hostapd, dnsmasq)
+- Production web server setup (Nginx + Gunicorn + Supervisor)
+- Security configuration with RSA encryption
 
-### 3. Generate & trust local CA (on your dev PC)
-```bash
-# Create CA key & cert
-openssl genrsa -out ca.key 4096
-openssl req -x509 -new -nodes -key ca.key -sha256 \
-  -days 3650 -out ca.crt \
-  -subj "/CN=Whispi-Local-CA"
+## 💬 Usage
 
-# Create server key & CSR
-openssl genrsa -out server.key 2048
-openssl req -new -key server.key \
-  -out server.csr -subj "/CN=whispi.secure"
+1. **Connect**: Join the Pi's Wi-Fi network (SSID: `Whispi-Network`)
+2. **Access**: Open browser and navigate to `https://whispi.secure`
+3. **Register**: Create an account with username and password
+4. **Chat**: Send encrypted messages to other users on the network
 
-# Sign server cert with CA
-openssl x509 -req -in server.csr -CA ca.crt -CAkey ca.key \
-  -CAcreateserial -out server.crt -days 365 -sha256
-```
+## 🛡️ Security Architecture
 
-### 4. Install CA certificate on clients
-On Windows/Mac/Linux: import `ca.crt` into your OS/browser's trusted root store.
+- **Hybrid Encryption**: RSA for key exchange, AES for message payloads
+- **Client-Side Encryption**: Messages encrypted before transmission
+- **Digital Signatures**: Each message cryptographically signed
+- **Local Certificate Authority**: Self-signed certificates for HTTPS
+- **Session Management**: Secure server-side session handling
 
-### 5. Copy certificates to Pi
-```bash
-scp ca.crt server.crt server.key pi@whispi.secure:/home/pi/whispi/certs/
-```
-
----
-
-## 🔧 Configure Pi as Wi-Fi Hotspot
-
-Follow Pi Hotspot Configuration to:
-- Install & configure `hostapd`
-- Set up `dnsmasq` for DHCP & DNS
-- Enable automatic redirect to `whispi.secure`
-
-> **Note:** You'll lose SSH momentarily during transitions; reconnect to the Pi's SSID.
-
----
-
-## ⚙️ Database Initialization
-
-On the Pi, in your virtual environment:
-
-```bash
-export FLASK_APP=server.py
-flask init-db       # creates SQLite schema
-```
-
-This sets up tables for users, messages, rate limits, etc.
-
----
-
-## ▶️ Running the Server
-
-```bash
-# Activate environment
-cd ~/whispi
-source venv/bin/activate
-
-# Launch Flask app with HTTPS
-FLASK_ENV=production flask run \
-  --host=0.0.0.0 --port=443 \
-  --cert=certs/server.crt --key=certs/server.key
-```
-
----
-
-## 💬 Using the Chat
-
-1. Connect your device to the Pi's Wi-Fi SSID
-2. In your browser, visit `https://whispi.secure`
-3. Sign up with a username & password (your RSA private key is encrypted and stored)
-4. Log in to see your inbox and compose messages
-5. All messages are encrypted and signed; only recipients can decrypt
-
----
-
-## 🛡️ Security Features
-
-- **End-to-End Encryption**: Messages are encrypted client-side before transmission
-- **Digital Signatures**: Each message is cryptographically signed for authenticity
-- **Password Protection**: Private keys are encrypted with user passwords
-- **Rate Limiting**: Built-in protection against abuse and spam
-- **Offline Operation**: No external network dependencies
-
----
-
-## 🔧 Technical Details
+## 🔧 Technical Stack
 
 - **Backend**: Flask (Python)
 - **Database**: SQLite
-- **Encryption**: RSA-4096 + AES-256
-- **Certificates**: Self-signed CA with local trust
-- **Network**: Hostapd + Dnsmasq for hotspot functionality
+- **Encryption**: RSA-4096 + AES-256-GCM
+- **Network**: hostapd + dnsmasq
+- **Web Server**: Flask development server with HTTPS
 
----
+## 📁 Project Structure
 
-## 📝 License
+```
+WhisPi/
+├── app/               # Server files 
+├── setup.sh           # Automated installation script
+├── start.sh           # Server startup script
+├── server.py          # Main Flask application
+├── static/            # Web interface files
+├── certs/             # SSL certificates
+├── database.db        # SQLite database
+└── requirements.txt   # Python dependencies
+```
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+## 🔄 Management Commands
 
----
+```bash
+# Check system status
+./06_check_status.sh
+
+# Enable hotspot mode (disables internet)
+./03_enable_hotspot.sh
+
+# Restore normal WiFi mode
+./04_restore_wifi.sh
+
+# Development mode with debug
+./05_development_mode.sh
+
+# Backup all configurations
+./07_backup_config.sh
+
+# Manual service control
+./01_start_services.sh
+./02_stop_services.sh
+```
+
+## 🌐 Network Configuration
+
+After setup, the Pi will broadcast:
+- **SSID**: `Whispi-Network`
+- **Password**: `whispi123` (can be changed in setup.sh)
+- **IP Range**: 192.168.4.0/24
+- **Pi IP**: 192.168.4.1
+- **Domain**: whispi.secure → 192.168.4.1
+
+## ⚠️ Security Considerations
+
+- Change default Wi-Fi password in production
+- Keep the Pi physically secure
+- Regularly update the system: `sudo apt update && sudo apt upgrade`
+- Monitor for unauthorized access attempts
+- Consider implementing user management for larger deployments
+
+## 📄 License
+
+MIT License - see [LICENSE](LICENSE) file for details.
 
 ## 🤝 Contributing
 
 1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
----
+2. Create feature branch (`git checkout -b feature/new-feature`)
+3. Commit changes (`git commit -am 'Add new feature'`)
+4. Push to branch (`git push origin feature/new-feature`)
+5. Create Pull Request
 
 ## ⚠️ Disclaimer
 
-This software is provided for educational and research purposes. Users are responsible for ensuring compliance with applicable laws and regulations in their jurisdiction.
+This software is provided for educational and research purposes. Users must ensure compliance with applicable laws and regulations in their jurisdiction. The developers assume no liability for misuse or security vulnerabilities.
