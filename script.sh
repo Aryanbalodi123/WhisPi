@@ -723,18 +723,14 @@ log_file "03_enable_hotspot.sh"
 cat > 04_restore_wifi.sh << 'EOF'
 #!/bin/bash
 echo "🔄 Restoring WiFi mode..."
-
 ./02_stop_services.sh
-
 sudo systemctl disable hostapd dnsmasq >/dev/null 2>&1
 sudo systemctl stop hostapd dnsmasq >/dev/null 2>&1
-
 # Comment out hotspot config in dhcpcd.conf
 sudo sed -i '/# WhisPi Hotspot Configuration/,/nohook wpa_supplicant/ s/^/#/' /etc/dhcpcd.conf
-
+sudo systemctl enable wpa_supplicant >/dev/null 2>&1
 sudo systemctl restart dhcpcd >/dev/null 2>&1
 sudo systemctl restart wpa_supplicant >/dev/null 2>&1
-
 echo "✅ WiFi restored"
 echo "ℹ️  Reboot recommended"
 echo "ℹ️  Configure WiFi: sudo raspi-config"
@@ -743,21 +739,9 @@ chmod +x 04_restore_wifi.sh
 log_file "04_restore_wifi.sh"
 
 log_step "Development Tools"
-log_progress "Creating development and utility scripts..."
+log_progress "Creating utility scripts..."
 
-cat > 05_development_mode.sh << EOF
-#!/bin/bash
-echo "🧪 Starting development mode..."
-source $VENV_PATH/bin/activate
-export DEBUG=True
-export HOST=0.0.0.0
-export PORT=5000
-python3 main.py
-EOF
-chmod +x 05_development_mode.sh
-log_file "05_development_mode.sh"
-
-cat > 06_check_status.sh << 'EOF'
+cat > 05_check_status.sh << 'EOF'
 #!/bin/bash
 echo "📊 WhisPi System Status"
 echo "======================="
@@ -786,10 +770,10 @@ echo "  App Log:    tail -5 /var/log/whispi/supervisor.log"
 echo "  Error Log:  tail -5 /var/log/whispi/error.log"
 echo "  Setup Log:  tail -5 /tmp/whispi_setup.log"
 EOF
-chmod +x 06_check_status.sh
-log_file "06_check_status.sh"
+chmod +x 05_check_status.sh
+log_file "05_check_status.sh"
 
-cat > 07_backup_config.sh << 'EOF'
+cat > 06_backup_config.sh << 'EOF'
 #!/bin/bash
 BACKUP_DIR="backup_$(date +%Y%m%d_%H%M%S)"
 echo "💾 Creating configuration backup: $BACKUP_DIR"
@@ -811,8 +795,8 @@ sudo cp /etc/supervisor/conf.d/whispi.conf "$BACKUP_DIR/" 2>/dev/null
 echo "✅ Backup created in: $BACKUP_DIR"
 echo "📦 Archive with: tar -czf whispi_backup_$(date +%Y%m%d).tar.gz $BACKUP_DIR"
 EOF
-chmod +x 07_backup_config.sh
-log_file "07_backup_config.sh"
+chmod +x 06_backup_config.sh
+log_file "06_backup_config.sh"
 
 log_success "Management scripts created successfully"
 
@@ -894,9 +878,8 @@ Management Scripts:
 02_stop_services.sh       - Stop all WhisPi services  
 03_enable_hotspot.sh      - Switch to hotspot mode (offline)
 04_restore_wifi.sh        - Restore normal WiFi mode
-05_development_mode.sh    - Run in development mode
-06_check_status.sh        - Check system status
-07_backup_config.sh       - Backup all configurations
+05_check_status.sh        - Check system status
+06_backup_config.sh       - Backup all configurations
 
 System Commands:
 ---------------
@@ -925,7 +908,7 @@ HTTP Alt:             http://$LOCAL_IP
 
 Troubleshooting:
 ---------------
-1. Check services:    ./06_check_status.sh
+1. Check services:    ./05_check_status.sh
 2. View logs:         tail -f /var/log/whispi/supervisor.log
 3. Test nginx:        sudo nginx -t
 4. Restart services:  sudo supervisorctl restart whispi
@@ -941,7 +924,7 @@ Security Notes:
 
 Backup & Recovery:
 -----------------
-- Run ./07_backup_config.sh to backup all configs
+- Run ./06_backup_config.sh to backup all configs
 - Keep backup of certificates and .env file
 - System configs backed up during installation
 - Virtual environment can be recreated from requirements.txt
@@ -978,10 +961,9 @@ echo -e "${BOLD}${GREEN}│${NC}    4️⃣  Accept SSL certificate warning"
 echo -e "${BOLD}${GREEN}│${NC}    5️⃣  Start chatting securely!"
 echo -e "${BOLD}${GREEN}│${NC}"
 echo -e "${BOLD}${GREEN}│${NC}  ${BOLD}Management:${NC}"
-echo -e "${BOLD}${GREEN}│${NC}    📊 Status: ${CYAN}./06_check_status.sh${NC}"
+echo -e "${BOLD}${GREEN}│${NC}    📊 Status: ${CYAN}./05_check_status.sh${NC}"
 echo -e "${BOLD}${GREEN}│${NC}    🔄 Restore WiFi: ${CYAN}./04_restore_wifi.sh${NC}"
-echo -e "${BOLD}${GREEN}│${NC}    🧪 Development: ${CYAN}./05_development_mode.sh${NC}"
-echo -e "${BOLD}${GREEN}│${NC}    💾 Backup: ${CYAN}./07_backup_config.sh${NC}"
+echo -e "${BOLD}${GREEN}│${NC}    💾 Backup: ${CYAN}./06_backup_config.sh${NC}"
 echo -e "${BOLD}${GREEN}└──────────────────────────────────────────────────────────────────────────────────┘${NC}"
 
 echo ""

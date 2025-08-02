@@ -1,2 +1,4 @@
 .env
 .vscode
+server.py
+pi-hotspot-guide.md
