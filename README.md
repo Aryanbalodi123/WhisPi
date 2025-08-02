@@ -21,7 +21,7 @@ A secure, offline, end-to-end encrypted chat server for Raspberry Pi Zero W. Use
 ### Installation
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/whispi.git
+git clone https://github.com/Aryanbalodi123/whispi.git
 cd WhisPi
 
 # Run automated setup script
