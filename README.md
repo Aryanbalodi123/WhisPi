@@ -25,7 +25,7 @@ git clone https://github.com/Aryanbalodi123/WhisPi.git
 cd WhisPi
 
 # Run automated setup script
-bash setup.sh
+bash script.sh
 
 # Reboot (mandatory)
 sudo reboot
